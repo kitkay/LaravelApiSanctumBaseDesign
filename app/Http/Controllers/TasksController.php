@@ -6,6 +6,8 @@ use App\Http\Requests\StoreTaskRequest;
 use App\Http\Resources\TasksResource;
 use App\Models\Task;
 use App\Traits\HttpResponses;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -19,23 +21,24 @@ class TasksController extends Controller
      */
     public function index()
     {
-        /**
-         * Calling a collection from our resource to be converted into a json.
-         *
-         *  We check based on `user_id`
-         *  it should be equal to Authenticated user grabing the id
-         *      by chaining id and get specific user.
-         *  then get all
-         */
-        return TasksResource::collection(
-            Task::where('user_id', Auth::user()->id)->get()
-        );
+        try {
+            return TasksResource::collection(
+                Task::where('user_id', Auth::user()->id)->get()
+            );
+        } catch (Exception $e) {
+            return $this->error(
+                [],
+                'Server Failed: ' . $e,
+                500
+            );
+        }
     }
 
     /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
+     *
      * @return \Illuminate\Http\Response
      */
     public function store(StoreTaskRequest $storeRequest)
@@ -53,14 +56,17 @@ class TasksController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Show single Task
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param Task $task
+     *
+     * @return JsonResponse
      */
     public function show(Task $task)
     {
-        return $this->isNotAuthorized($task) ? $this->isNotAuthorized($task) : new TasksResource($task);
+        return $this->isNotAuthorized($task)
+            ? $this->isNotAuthorized($task)
+            : new TasksResource($task);
     }
 
     /**
@@ -68,10 +74,13 @@ class TasksController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
+     *
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Task $task)
-    {
+    public function update(
+        Request $request,
+        Task $task
+    ): JsonResponse {
         if (Auth::user()->id !== $task->user_id) {
             return $this->error(
                 '',
